@@ -12,6 +12,15 @@
             text-align: center;
             font-family: Arial, sans-serif;
         }
+        .announcement {
+            background-color: #ffcc00;
+            color: black;
+            padding: 10px;
+            margin: 10px auto;
+            width: 80%;
+            border-radius: 10px;
+            font-size: 20px;
+        }
         .button {
             display: block;
             width: 80%;
@@ -32,6 +41,12 @@
 </head>
 <body>
     <h1>小派应用商店（澳大利亚）</h1>
+
+    <!-- 公告区域 -->
+    <div id="announcement" class="announcement">
+        📢 公告加载中...
+    </div>
+
     <div id="apk-list">
         <p>加载 APK 列表中...</p>
     </div>
@@ -40,13 +55,33 @@
         const repoOwner = "smartblaack";
         const repoName = "android-tv-store-AU";
         const apiUrl = `https://api.github.com/repos/${repoOwner}/${repoName}/releases/latest`;
+        const announcementUrl = `https://raw.githubusercontent.com/${repoOwner}/${repoName}/main/announcement.txt`;
 
+        // 获取公告内容
+        function fetchAnnouncement() {
+            fetch(announcementUrl)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error("公告文件未找到");
+                    }
+                    return response.text();
+                })
+                .then(text => {
+                    document.getElementById("announcement").textContent = `📢 ${text}`;
+                })
+                .catch(error => {
+                    console.error("公告加载失败:", error);
+                    document.getElementById("announcement").textContent = "📢 暂无公告";
+                });
+        }
+
+        // 获取 APK 列表
         function fetchApkList() {
             fetch(apiUrl)
                 .then(response => response.json())
                 .then(data => {
                     const apkListDiv = document.getElementById("apk-list");
-                    apkListDiv.innerHTML = ""; // 清空加载文字
+                    apkListDiv.innerHTML = "";
                     if (data.assets && data.assets.length > 0) {
                         data.assets.forEach(asset => {
                             if (asset.name.endsWith(".apk")) {
@@ -70,6 +105,7 @@
                 });
         }
 
+        // 遥控器方向键支持
         document.addEventListener("keydown", function(event) {
             let focused = document.activeElement;
             if (event.key === "ArrowDown") {
@@ -83,7 +119,8 @@
             }
         });
 
-        fetchApkList(); // 页面加载时获取 APK 列表
+        fetchAnnouncement(); // 获取公告
+        fetchApkList(); // 获取 APK 列表
     </script>
 </body>
 </html>
