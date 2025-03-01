@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>小派应用商店（澳大利亚）</title>
+    <style>
+        body {
+            background-color: #222;
+            color: white;
+            font-size: 24px;
+            text-align: center;
+            font-family: Arial, sans-serif;
+        }
+        .button {
+            display: block;
+            width: 80%;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: #007bff;
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            border-radius: 10px;
+        }
+        .button:focus {
+            background-color: #0056b3;
+            outline: 3px solid yellow;
+        }
+    </style>
+</head>
+<body>
+    <h1>小派应用商店（澳大利亚）</h1>
+    <button id="download" class="button" tabindex="1">
+        📥 下载并安装 APK
+    </button>
+
+    <script>
+        document.addEventListener("keydown", function(event) {
+            let focused = document.activeElement;
+            if (event.key === "ArrowDown") {
+                let next = focused.nextElementSibling;
+                if (next) next.focus();
+            } else if (event.key === "ArrowUp") {
+                let prev = focused.previousElementSibling;
+                if (prev) prev.focus();
+            } else if (event.key === "Enter") {
+                focused.click();
+            }
+        });
+
+        document.getElementById("download").addEventListener("click", function() {
+            window.location.href = "https://github.com/smartblaack/android-tv-store-AU/releases/latest/download/app.apk";
+        });
+    </script>
+</body>
+</html>
