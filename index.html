@@ -32,11 +32,44 @@
 </head>
 <body>
     <h1>小派应用商店（澳大利亚）</h1>
-    <button id="download" class="button" tabindex="1">
-        📥 下载并安装 APK
-    </button>
+    <div id="apk-list">
+        <p>加载 APK 列表中...</p>
+    </div>
 
     <script>
+        const repoOwner = "smartblaack";
+        const repoName = "android-tv-store-AU";
+        const apiUrl = `https://api.github.com/repos/${repoOwner}/${repoName}/releases/latest`;
+
+        function fetchApkList() {
+            fetch(apiUrl)
+                .then(response => response.json())
+                .then(data => {
+                    const apkListDiv = document.getElementById("apk-list");
+                    apkListDiv.innerHTML = ""; // 清空加载文字
+                    if (data.assets && data.assets.length > 0) {
+                        data.assets.forEach(asset => {
+                            if (asset.name.endsWith(".apk")) {
+                                let apkButton = document.createElement("button");
+                                apkButton.classList.add("button");
+                                apkButton.textContent = `📥 下载 ${asset.name}`;
+                                apkButton.setAttribute("tabindex", "1");
+                                apkButton.onclick = () => {
+                                    window.location.href = asset.browser_download_url;
+                                };
+                                apkListDiv.appendChild(apkButton);
+                            }
+                        });
+                    } else {
+                        apkListDiv.innerHTML = "<p>当前没有 APK 可下载</p>";
+                    }
+                })
+                .catch(error => {
+                    console.error("获取 APK 失败:", error);
+                    document.getElementById("apk-list").innerHTML = "<p>无法加载 APK，请稍后重试。</p>";
+                });
+        }
+
         document.addEventListener("keydown", function(event) {
             let focused = document.activeElement;
             if (event.key === "ArrowDown") {
@@ -50,9 +83,7 @@
             }
         });
 
-        document.getElementById("download").addEventListener("click", function() {
-            window.location.href = "https://github.com/smartblaack/android-tv-store-AU/releases/latest/download/app.apk";
-        });
+        fetchApkList(); // 页面加载时获取 APK 列表
     </script>
 </body>
 </html>
