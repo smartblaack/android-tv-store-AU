@@ -36,23 +36,6 @@
             background-color: gray;
             cursor: not-allowed;
         }
-        #progress-container {
-            display: none;
-            width: 100%;
-            background-color: #444;
-            margin-top: 10px;
-            border-radius: 5px;
-        }
-        #progress-bar {
-            height: 20px;
-            width: 0%;
-            background-color: #00ff00;
-            text-align: center;
-            line-height: 20px;
-            color: black;
-            font-weight: bold;
-            border-radius: 5px;
-        }
     </style>
 </head>
 <body>
@@ -62,7 +45,6 @@
     <div class="container">
         <h2>🔑 登录后台</h2>
         <input type="password" id="admin-password" placeholder="请输入管理员密码">
-        <input type="text" id="github-token" placeholder="请输入 GitHub 访问令牌">
         <button onclick="checkPassword()">登录</button>
     </div>
 
@@ -73,16 +55,17 @@
         <textarea id="apk-description" placeholder="请输入应用简介"></textarea>
         <button id="upload-btn" onclick="uploadApk()">上传 APK</button>
 
-        <!-- 进度条 -->
-        <div id="progress-container">
-            <div id="progress-bar">0%</div>
-        </div>
+        <h2>🗑️ 删除 APK</h2>
+        <input type="text" id="delete-apk-name" placeholder="请输入要删除的 APK 名称">
+        <button id="delete-btn" onclick="deleteApk()">删除 APK</button>
     </div>
 
     <script>
-        const adminPassword = "4439"; // 请修改为自己的密码
+        const adminPassword = "4439"; // 访问密码（请修改）
         const repoOwner = "smartblaack"; // GitHub 用户名
         const repoName = "android-tv-store-AU"; // GitHub 仓库名
+        const githubToken = "your_github_personal_access_token"; // GitHub Token（请替换）
+        const apkInfoUrl = `https://api.github.com/repos/${repoOwner}/${repoName}/contents/apk-info.json`;
 
         function checkPassword() {
             let inputPassword = document.getElementById("admin-password").value;
@@ -93,80 +76,152 @@
             }
         }
 
-async function uploadApk() {
-    let githubToken = document.getElementById("github-token").value;
-    let apkFile = document.getElementById("apk-file").files[0];
-    let apkName = document.getElementById("apk-name").value;
-    let apkDescription = document.getElementById("apk-description").value;
-    let uploadBtn = document.getElementById("upload-btn");
-    let progressBar = document.getElementById("progress-bar");
-    let progressContainer = document.getElementById("progress-container");
+        async function uploadApk() {
+            let apkFile = document.getElementById("apk-file").files[0];
+            let apkName = document.getElementById("apk-name").value;
+            let apkDescription = document.getElementById("apk-description").value;
 
-    if (!githubToken || !apkFile || !apkName || !apkDescription) {
-        alert("⚠️ 请填写所有信息！");
-        return;
-    }
+            if (!apkFile || !apkName || !apkDescription) {
+                alert("⚠️ 请填写所有信息！");
+                return;
+            }
 
-    uploadBtn.disabled = true;
-    progressContainer.style.display = "block";
-    progressBar.style.width = "0%";
-    progressBar.textContent = "0%";
+            try {
+                // 1️⃣ 获取 Release ID（如果 `tv` 已经存在）
+                let releaseUrl = `https://api.github.com/repos/${repoOwner}/${repoName}/releases`;
+                let releasesResponse = await fetch(releaseUrl, {
+                    headers: { "Authorization": `token ${githubToken}` }
+                });
+                let releases = await releasesResponse.json();
+                let tvRelease = releases.find(r => r.tag_name === "tv");
 
-    try {
-        // 1️⃣ 创建 Release（如果没有）
-        let releaseUrl = `https://api.github.com/repos/${repoOwner}/${repoName}/releases`;
-        let releaseResponse = await fetch(releaseUrl, {
-            method: "POST",
-            headers: {
-                "Authorization": `token ${githubToken}`,
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-                tag_name: "tv",
-                name: "Android TV Store Releases",
-                body: "自动上传的 APK",
-                draft: false,
-                prerelease: false
-            })
-        });
+                let releaseId;
+                if (tvRelease) {
+                    releaseId = tvRelease.id;
+                } else {
+                    // 创建新 Release
+                    let createReleaseResponse = await fetch(releaseUrl, {
+                        method: "POST",
+                        headers: {
+                            "Authorization": `token ${githubToken}`,
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify({
+                            tag_name: "tv",
+                            name: "Android TV Store Releases",
+                            body: "自动上传的 APK",
+                            draft: false,
+                            prerelease: false
+                        })
+                    });
+                    let newRelease = await createReleaseResponse.json();
+                    releaseId = newRelease.id;
+                }
 
-        let releaseData = await releaseResponse.json();
+                let uploadUrl = `https://uploads.github.com/repos/${repoOwner}/${repoName}/releases/${releaseId}/assets?name=${apkFile.name}`;
+                
+                // 2️⃣ 上传 APK
+                let uploadResponse = await fetch(uploadUrl, {
+                    method: "POST",
+                    headers: {
+                        "Authorization": `token ${githubToken}`,
+                        "Content-Type": "application/vnd.android.package-archive"
+                    },
+                    body: apkFile
+                });
 
-        console.log("GitHub API Response:", releaseData); // 🔴 添加调试日志
+                if (!uploadResponse.ok) throw new Error("上传 APK 失败");
 
-        if (!releaseData.upload_url) {
-            throw new Error("GitHub Releases API 返回的数据无效，未获取到 upload_url");
+                alert("✅ APK 上传成功！");
+
+                // 3️⃣ 更新 `apk-info.json`
+                await updateApkInfo(apkFile.name, apkName, apkDescription);
+            } catch (error) {
+                alert("❌ 上传失败：" + error.message);
+            }
         }
 
-        let uploadUrl = releaseData.upload_url.split("{")[0];
+        async function updateApkInfo(fileName, name, description) {
+            let response = await fetch(apkInfoUrl, {
+                headers: { "Authorization": `token ${githubToken}` }
+            });
+            let apkInfoData = await response.json();
+            let decodedContent = atob(apkInfoData.content);
+            let data = JSON.parse(decodedContent);
 
-        // 2️⃣ 上传 APK
-        let uploadResponse = await fetch(uploadUrl + `?name=${apkFile.name}`, {
-            method: "POST",
-            headers: {
-                "Authorization": `token ${githubToken}`,
-                "Content-Type": "application/vnd.android.package-archive"
-            },
-            body: apkFile
-        });
+            let newApk = {
+                "file": fileName,
+                "name": name,
+                "description": description,
+                "download_url": `https://github.com/${repoOwner}/${repoName}/releases/latest/download/${fileName}`,
+                "updated_at": new Date().toISOString().split('T')[0]
+            };
 
-        if (!uploadResponse.ok) throw new Error("上传 APK 失败");
+            data.apps.push(newApk);
 
-        // 更新进度条
-        progressBar.style.width = "100%";
-        progressBar.textContent = "上传完成 ✅";
+            let updateResponse = await fetch(apkInfoUrl, {
+                method: "PUT",
+                headers: {
+                    "Authorization": `token ${githubToken}`,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    message: "更新 APK 列表",
+                    content: btoa(JSON.stringify(data, null, 2)),
+                    sha: apkInfoData.sha
+                })
+            });
 
-        alert("✅ APK 上传成功！");
-    } catch (error) {
-        console.error("上传失败:", error); // 🔴 记录详细错误信息
-        alert("❌ 上传失败：" + error.message);
-        progressBar.style.width = "0%";
-        progressBar.textContent = "失败";
-    } finally {
-        uploadBtn.disabled = false;
-    }
-}
+            if (updateResponse.ok) {
+                alert("✅ APK 信息已更新！");
+            } else {
+                alert("❌ 更新失败！");
+            }
+        }
 
+        async function deleteApk() {
+            let apkName = document.getElementById("delete-apk-name").value;
+
+            if (!apkName) {
+                alert("⚠️ 请输入要删除的 APK 名称！");
+                return;
+            }
+
+            let response = await fetch(apkInfoUrl, {
+                headers: { "Authorization": `token ${githubToken}` }
+            });
+            let apkInfoData = await response.json();
+            let decodedContent = atob(apkInfoData.content);
+            let data = JSON.parse(decodedContent);
+
+            let filteredApps = data.apps.filter(app => app.name !== apkName);
+
+            if (filteredApps.length === data.apps.length) {
+                alert("❌ 未找到该 APK！");
+                return;
+            }
+
+            data.apps = filteredApps;
+
+            let updateResponse = await fetch(apkInfoUrl, {
+                method: "PUT",
+                headers: {
+                    "Authorization": `token ${githubToken}`,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    message: "删除 APK",
+                    content: btoa(JSON.stringify(data, null, 2)),
+                    sha: apkInfoData.sha
+                })
+            });
+
+            if (updateResponse.ok) {
+                alert("✅ APK 删除成功！");
+            } else {
+                alert("❌ 删除失败！");
+            }
+        }
     </script>
 
 </body>
