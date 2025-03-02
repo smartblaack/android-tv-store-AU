@@ -32,8 +32,26 @@
             border: none;
             cursor: pointer;
         }
-        button:hover {
-            background-color: #0056b3;
+        button:disabled {
+            background-color: gray;
+            cursor: not-allowed;
+        }
+        #progress-container {
+            display: none;
+            width: 100%;
+            background-color: #444;
+            margin-top: 10px;
+            border-radius: 5px;
+        }
+        #progress-bar {
+            height: 20px;
+            width: 0%;
+            background-color: #00ff00;
+            text-align: center;
+            line-height: 20px;
+            color: black;
+            font-weight: bold;
+            border-radius: 5px;
         }
     </style>
 </head>
@@ -44,110 +62,131 @@
     <div class="container">
         <h2>🔑 登录后台</h2>
         <input type="password" id="admin-password" placeholder="请输入管理员密码">
+        <input type="text" id="github-token" placeholder="GitHub 个人访问令牌">
         <button onclick="checkPassword()">登录</button>
     </div>
 
     <div id="admin-panel" class="container" style="display:none;">
         <h2>📤 上传 APK</h2>
-        <input type="text" id="repo-owner" placeholder="GitHub 用户名（例如 smartblaack）">
-        <input type="text" id="repo-name" placeholder="GitHub 仓库名（例如 android-tv-store-AU）">
-        <input type="text" id="github-token" placeholder="GitHub 个人访问令牌">
         <input type="file" id="apk-file">
         <input type="text" id="apk-name" placeholder="请输入应用名称（中文）">
         <textarea id="apk-description" placeholder="请输入应用简介"></textarea>
-        <button onclick="uploadApk()">上传 APK</button>
+        <button id="upload-btn" onclick="uploadApk()">上传 APK</button>
+
+        <!-- 进度条 -->
+        <div id="progress-container">
+            <div id="progress-bar">0%</div>
+        </div>
     </div>
 
     <script>
-        const adminPassword = "4439"; // 请修改为自己的密码
+        const adminPassword = "your_secure_password"; // 请修改为自己的密码
+        const repoOwner = "smartblaack"; // 默认 GitHub 用户名
+        const repoName = "android-tv-store-AU"; // 默认仓库名
 
         function checkPassword() {
             let inputPassword = document.getElementById("admin-password").value;
-            if (inputPassword === adminPassword) {
+            let githubToken = document.getElementById("github-token").value;
+
+            if (inputPassword === adminPassword && githubToken.trim() !== "") {
                 document.getElementById("admin-panel").style.display = "block";
             } else {
-                alert("密码错误！");
+                alert("❌ 访问密码或 Token 不正确！");
             }
         }
 
         async function uploadApk() {
-            let repoOwner = document.getElementById("repo-owner").value;
-            let repoName = document.getElementById("repo-name").value;
             let githubToken = document.getElementById("github-token").value;
             let apkFile = document.getElementById("apk-file").files[0];
             let apkName = document.getElementById("apk-name").value;
             let apkDescription = document.getElementById("apk-description").value;
+            let uploadBtn = document.getElementById("upload-btn");
+            let progressBar = document.getElementById("progress-bar");
+            let progressContainer = document.getElementById("progress-container");
 
-            if (!repoOwner || !repoName || !githubToken || !apkFile || !apkName || !apkDescription) {
-                alert("请填写所有信息！");
+            if (!githubToken || !apkFile || !apkName || !apkDescription) {
+                alert("⚠️ 请填写所有信息！");
                 return;
             }
 
-            // 1️⃣ 上传 APK 到 GitHub Releases
-            let releaseUrl = `https://api.github.com/repos/${repoOwner}/${repoName}/releases`;
-            let releaseResponse = await fetch(releaseUrl, {
-                method: "POST",
-                headers: {
-                    "Authorization": `token ${githubToken}`,
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({
-                    tag_name: "tv",
-                    name: `Release for ${apkFile.name}`,
-                    body: "自动上传的 APK",
-                    draft: false,
-                    prerelease: false
-                })
-            });
+            uploadBtn.disabled = true;
+            progressContainer.style.display = "block";
+            progressBar.style.width = "0%";
+            progressBar.textContent = "0%";
 
-            let releaseData = await releaseResponse.json();
-            let uploadUrl = releaseData.upload_url.split("{")[0];
+            try {
+                // 1️⃣ 创建 Release（如果没有）
+                let releaseUrl = `https://api.github.com/repos/${repoOwner}/${repoName}/releases`;
+                let releaseResponse = await fetch(releaseUrl, {
+                    method: "POST",
+                    headers: {
+                        "Authorization": `token ${githubToken}`,
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        tag_name: "tv",
+                        name: "Android TV Store Releases",
+                        body: "自动上传的 APK",
+                        draft: false,
+                        prerelease: false
+                    })
+                });
 
-            let apkResponse = await fetch(uploadUrl + `?name=${apkFile.name}`, {
-                method: "POST",
-                headers: {
-                    "Authorization": `token ${githubToken}`,
-                    "Content-Type": "application/vnd.android.package-archive"
-                },
-                body: apkFile
-            });
+                let releaseData = await releaseResponse.json();
+                let uploadUrl = releaseData.upload_url.split("{")[0];
 
-            if (apkResponse.ok) {
-                alert("✅ APK 上传成功！");
-            } else {
-                alert("❌ APK 上传失败！");
-                return;
-            }
+                // 2️⃣ 上传 APK
+                let uploadResponse = await fetch(uploadUrl + `?name=${apkFile.name}`, {
+                    method: "POST",
+                    headers: {
+                        "Authorization": `token ${githubToken}`,
+                        "Content-Type": "application/vnd.android.package-archive"
+                    },
+                    body: apkFile
+                });
 
-            // 2️⃣ 更新 `apk-info.json`
-            let apkInfoUrl = `https://api.github.com/repos/${repoOwner}/${repoName}/contents/apk-info.json`;
-            let apkInfoResponse = await fetch(apkInfoUrl, {
-                headers: { "Authorization": `token ${githubToken}` }
-            });
+                if (!uploadResponse.ok) throw new Error("上传 APK 失败");
 
-            let apkInfoData = await apkInfoResponse.json();
-            let decodedContent = atob(apkInfoData.content);
-            let apkInfo = JSON.parse(decodedContent);
+                // 更新进度条
+                progressBar.style.width = "100%";
+                progressBar.textContent = "上传完成 ✅";
 
-            apkInfo[apkFile.name] = { "name": apkName, "description": apkDescription };
+                // 3️⃣ 更新 `apk-info.json`
+                let apkInfoUrl = `https://api.github.com/repos/${repoOwner}/${repoName}/contents/apk-info.json`;
+                let apkInfoResponse = await fetch(apkInfoUrl, {
+                    headers: { "Authorization": `token ${githubToken}` }
+                });
 
-            let updateResponse = await fetch(apkInfoUrl, {
-                method: "PUT",
-                headers: {
-                    "Authorization": `token ${githubToken}`,
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({
-                    message: "更新 APK 信息",
-                    content: btoa(JSON.stringify(apkInfo, null, 2)),
-                    sha: apkInfoData.sha
-                })
-            });
+                let apkInfoData = await apkInfoResponse.json();
+                let decodedContent = atob(apkInfoData.content);
+                let apkInfo = JSON.parse(decodedContent);
 
-            if (updateResponse.ok) {
-                alert("✅ APK 信息更新成功！");
-            } else {
-                alert("❌ APK 信息更新失败！");
+                apkInfo[apkFile.name] = { "name": apkName, "description": apkDescription };
+
+                let updateResponse = await fetch(apkInfoUrl, {
+                    method: "PUT",
+                    headers: {
+                        "Authorization": `token ${githubToken}`,
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        message: "更新 APK 信息",
+                        content: btoa(JSON.stringify(apkInfo, null, 2)),
+                        sha: apkInfoData.sha
+                    })
+                });
+
+                if (updateResponse.ok) {
+                    alert("✅ APK 上传成功！信息已更新！");
+                } else {
+                    alert("⚠️ APK 上传成功，但信息更新失败！");
+                }
+            } catch (error) {
+                alert("❌ 上传失败：" + error.message);
+                progressBar.style.width = "0%";
+                progressBar.textContent = "失败";
+            } finally {
+                uploadBtn.disabled = false;
             }
         }
     </script>
