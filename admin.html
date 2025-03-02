@@ -61,7 +61,8 @@
 
     <div class="container">
         <h2>🔑 登录后台</h2>
-        <input type="password" id="4439" placeholder="请输入管理员密码">
+        <input type="password" id="admin-password" placeholder="请输入管理员密码">
+        <input type="text" id="github-token" placeholder="请输入 GitHub 访问令牌">
         <button onclick="checkPassword()">登录</button>
     </div>
 
@@ -79,23 +80,21 @@
     </div>
 
     <script>
-        const adminPassword = "your_secure_password"; // 请修改为自己的密码
-        const repoOwner = "smartblaack"; // 默认 GitHub 用户名
-        const repoName = "android-tv-store-AU"; // 默认仓库名
+        const adminPassword = "4439"; // 请修改为自己的密码
+        const repoOwner = "smartblaack"; // GitHub 用户名
+        const repoName = "android-tv-store-AU"; // GitHub 仓库名
 
         function checkPassword() {
             let inputPassword = document.getElementById("admin-password").value;
-            let githubToken = document.getElementById("github-token").value;
-
-            if (inputPassword === adminPassword && githubToken.trim() !== "") {
+            if (inputPassword === adminPassword) {
                 document.getElementById("admin-panel").style.display = "block";
             } else {
-                alert("❌ 访问密码或 Token 不正确！");
+                alert("❌ 密码错误！");
             }
         }
 
         async function uploadApk() {
-            let githubToken = document.getElementById("github-token").value;
+            let githubToken = document.getElementById("github-token").value; // 让用户输入 Token
             let apkFile = document.getElementById("apk-file").files[0];
             let apkName = document.getElementById("apk-name").value;
             let apkDescription = document.getElementById("apk-description").value;
@@ -150,36 +149,7 @@
                 progressBar.style.width = "100%";
                 progressBar.textContent = "上传完成 ✅";
 
-                // 3️⃣ 更新 `apk-info.json`
-                let apkInfoUrl = `https://api.github.com/repos/${repoOwner}/${repoName}/contents/apk-info.json`;
-                let apkInfoResponse = await fetch(apkInfoUrl, {
-                    headers: { "Authorization": `token ${githubToken}` }
-                });
-
-                let apkInfoData = await apkInfoResponse.json();
-                let decodedContent = atob(apkInfoData.content);
-                let apkInfo = JSON.parse(decodedContent);
-
-                apkInfo[apkFile.name] = { "name": apkName, "description": apkDescription };
-
-                let updateResponse = await fetch(apkInfoUrl, {
-                    method: "PUT",
-                    headers: {
-                        "Authorization": `token ${githubToken}`,
-                        "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify({
-                        message: "更新 APK 信息",
-                        content: btoa(JSON.stringify(apkInfo, null, 2)),
-                        sha: apkInfoData.sha
-                    })
-                });
-
-                if (updateResponse.ok) {
-                    alert("✅ APK 上传成功！信息已更新！");
-                } else {
-                    alert("⚠️ APK 上传成功，但信息更新失败！");
-                }
+                alert("✅ APK 上传成功！");
             } catch (error) {
                 alert("❌ 上传失败：" + error.message);
                 progressBar.style.width = "0%";
