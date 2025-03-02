@@ -3,16 +3,32 @@
         {
             "file": "aiyifan.apk",
             "name": "爱一帆",
-            "description": "在线观影",
-            "download_url": "https://github.com/smartblaack/android-tv-store-AU/releases/latest/download/aiyifan.apk",
-            "updated_at": "2024-03-02"
+            "description": "免费在线观影软件"
+        },
+        {
+            "file": "aiyingshi.apk",
+            "name": "爱影视",
+            "description": "观影软件"
         },
         {
             "file": "dangbeimarket.apk",
-            "name": "当贝市场",
-            "description": "应用商店",
-            "download_url": "https://github.com/smartblaack/android-tv-store-AU/releases/latest/download/dangbeimarket.apk",
-            "updated_at": "2024-03-02"
+            "name": "当贝应用商店",
+            "description": "可下载国内应用"
+        },
+        {
+            "file": "guangyuansu.touping.apk",
+            "name": "光元素投屏",
+            "description": "安卓、苹果手机投屏"
+        },
+        {
+            "file": "naifeimaotvcat-n1-v10100-1k.apk",
+            "name": "网飞猫",
+            "description": "在线影视、奈飞观看"
+        },
+        {
+            "file": "OurTV_3.6.6_android_tv.apk",
+            "name": "在线TV",
+            "description": "看电视直播"
         }
     ]
 }
