@@ -21,15 +21,36 @@
             border-radius: 10px;
             font-size: 20px;
         }
+        .apk-card {
+            background-color: #333;
+            padding: 15px;
+            margin: 15px auto;
+            width: 80%;
+            border-radius: 10px;
+            text-align: left;
+            color: white;
+        }
+        .apk-title {
+            font-size: 22px;
+            font-weight: bold;
+        }
+        .apk-description {
+            font-size: 18px;
+            color: #ccc;
+        }
+        .apk-date {
+            font-size: 16px;
+            color: #999;
+        }
         .button {
             display: block;
-            width: 80%;
-            margin: 20px auto;
-            padding: 20px;
+            width: 100%;
+            margin-top: 10px;
+            padding: 10px;
             background-color: #007bff;
             border: none;
             color: white;
-            font-size: 24px;
+            font-size: 20px;
             cursor: pointer;
             border-radius: 10px;
         }
@@ -54,18 +75,16 @@
     <script>
         const repoOwner = "smartblaack";
         const repoName = "android-tv-store-AU";
-        const apiUrl = `https://api.github.com/repos/${repoOwner}/${repoName}/releases/latest`;
+        const releasesUrl = `https://api.github.com/repos/${repoOwner}/${repoName}/releases/latest`;
+        const apkInfoUrl = `https://raw.githubusercontent.com/${repoOwner}/${repoName}/main/apk-info.json`;
         const announcementUrl = `https://raw.githubusercontent.com/${repoOwner}/${repoName}/main/announcement.txt`;
+
+        let apkInfo = {}; // 存储 APK 介绍信息
 
         // 获取公告内容
         function fetchAnnouncement() {
             fetch(announcementUrl)
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error("公告文件未找到");
-                    }
-                    return response.text();
-                })
+                .then(response => response.text())
                 .then(text => {
                     document.getElementById("announcement").textContent = `📢 ${text}`;
                 })
@@ -75,34 +94,53 @@
                 });
         }
 
+        // 获取 APK 信息
+        async function fetchApkInfo() {
+            try {
+                let response = await fetch(apkInfoUrl);
+                if (!response.ok) throw new Error("无法获取 APK 介绍信息");
+                apkInfo = await response.json();
+            } catch (error) {
+                console.error("❌ 获取 apk-info.json 失败:", error);
+                apkInfo = { apps: [] }; // 如果失败，设为空数据
+            }
+        }
+
         // 获取 APK 列表
-        function fetchApkList() {
-            fetch(apiUrl)
-                .then(response => response.json())
-                .then(data => {
-                    const apkListDiv = document.getElementById("apk-list");
-                    apkListDiv.innerHTML = "";
-                    if (data.assets && data.assets.length > 0) {
-                        data.assets.forEach(asset => {
-                            if (asset.name.endsWith(".apk")) {
-                                let apkButton = document.createElement("button");
-                                apkButton.classList.add("button");
-                                apkButton.textContent = `📥 下载 ${asset.name}`;
-                                apkButton.setAttribute("tabindex", "1");
-                                apkButton.onclick = () => {
-                                    window.location.href = asset.browser_download_url;
-                                };
-                                apkListDiv.appendChild(apkButton);
-                            }
-                        });
-                    } else {
-                        apkListDiv.innerHTML = "<p>当前没有 APK 可下载</p>";
+        async function fetchApkList() {
+            try {
+                let response = await fetch(releasesUrl);
+                if (!response.ok) throw new Error("无法获取 Release 信息");
+                let data = await response.json();
+
+                const apkListDiv = document.getElementById("apk-list");
+                apkListDiv.innerHTML = "";
+
+                if (!data.assets || data.assets.length === 0) {
+                    apkListDiv.innerHTML = "<p>暂无可下载的应用</p>";
+                    return;
+                }
+
+                data.assets.forEach(asset => {
+                    if (asset.name.endsWith(".apk")) {
+                        let appInfo = apkInfo.apps.find(app => app.file === asset.name) || {};
+
+                        let apkCard = document.createElement("div");
+                        apkCard.classList.add("apk-card");
+                        apkCard.innerHTML = `
+                            <div class="apk-title">${appInfo.name || asset.name.replace(".apk", "")}</div>
+                            <div class="apk-description">${appInfo.description || "暂无介绍"}</div>
+                            <div class="apk-date">更新时间: ${new Date(asset.updated_at).toLocaleDateString()}</div>
+                            <button class="button" onclick="window.location.href='${asset.browser_download_url}'">
+                                📥 立即下载
+                            </button>
+                        `;
+                        apkListDiv.appendChild(apkCard);
                     }
-                })
-                .catch(error => {
-                    console.error("获取 APK 失败:", error);
-                    document.getElementById("apk-list").innerHTML = "<p>无法加载 APK，请稍后重试。</p>";
                 });
+            } catch (error) {
+                document.getElementById("apk-list").innerHTML = "<p>无法加载 APK，请稍后重试。</p>";
+            }
         }
 
         // 遥控器方向键支持
@@ -119,8 +157,13 @@
             }
         });
 
-        fetchAnnouncement(); // 获取公告
-        fetchApkList(); // 获取 APK 列表
+        async function init() {
+            fetchAnnouncement(); // 获取公告
+            await fetchApkInfo(); // 先获取 APK 介绍信息
+            fetchApkList(); // 再获取 Releases 列表
+        }
+
+        init();
     </script>
 </body>
 </html>
