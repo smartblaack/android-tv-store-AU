@@ -29,6 +29,16 @@
             "file": "OurTV_3.6.6_android_tv.apk",
             "name": "在线TV",
             "description": "看电视直播"
+        },
+        {
+            "file": "ouleyingyuan.apk",
+            "name": "欧乐影院",
+            "description": "高清影视资源播放"
+        },
+        {
+            "file": "huaren_live.apk",
+            "name": "华人影院",
+            "description": "华人专属影视平台"
         }
     ]
 }
