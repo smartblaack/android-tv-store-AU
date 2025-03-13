@@ -39,11 +39,12 @@
             "file": "huaren_live.apk",
             "name": "华人影院",
             "description": "华人专属影视平台"
-        }
-          {
+        },
+        {
             "file": "cytx.apk",
             "name": "春盈TV",
             "description": "免费在线视频"
         }
     ]
 }
+
